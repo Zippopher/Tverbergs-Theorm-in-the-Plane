@@ -5,14 +5,27 @@
 
 document.addEventListener('DOMContentLoaded', () => {
   let canvas = document.getElementById('canvas');
+  let setsInput = document.getElementById('sets-input');
+  let pointsOutput = document.getElementById('points-output');
+  let resetButton = document.getElementById('reset-button');
 
-  let r = 3; // set to however many subsets you want
-  let n = 3*r - 2;
-  let points = randomPoints(n, p(100, 100), p(canvas.width - 100, canvas.height - 100));
+  let r, n, points, drag, draw;
+
+  let refresh = () => {
+    r = setsInput.value;
+    n = 3*r - 2;
+    pointsOutput.innerText = n;
+
+    points = randomPoints(n, p(100, 100), p(canvas.width - 100, canvas.height - 100));
+    drag = new Drag(canvas, points);
+    draw = new Draw(canvas.getContext('2d'), points, canvas.width, canvas.height);
+  }
+  refresh(); // initial set values
+  setsInput.addEventListener('input', refresh); // set values again count is changed
+  resetButton.addEventListener('click', refresh);
+
+
   
-  let drag = new Drag(canvas, points);
-  let draw = new Draw(canvas.getContext('2d'), points, canvas.width, canvas.height);
-
   const black = '#000000';
   const colors = makePalette();
 
@@ -29,22 +42,6 @@ document.addEventListener('DOMContentLoaded', () => {
     points.forEach((point) => draw.dot(point, black));
     draw.circle(center, 50, black);
   }, 16);
-
-  let setsInput = document.getElementById('sets-input');
-  let pointsOutput = document.getElementById('points-output');
-  let resetButton = document.getElementById('reset-button');
-  let refresh = () => {
-    r = setsInput.value;
-    n = 3*r - 2;
-    pointsOutput.innerText = n;
-
-    points = randomPoints(n, p(100, 100), p(canvas.width - 100, canvas.height - 100));
-    drag.points = points;
-    draw.points = points;
-    drag.recalcRequired = true;
-  }
-  setsInput.addEventListener('input', refresh);
-  resetButton.addEventListener('click', refresh);
 });
 
 
