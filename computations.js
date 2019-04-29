@@ -89,26 +89,26 @@ function centerOf(points) {
   return p(sum.x/points.length, sum.y/points.length);
 }
 
-// given four points, return the two line semgents which intersect, and their intersection
+// given four points, return their intersection, and the form which their partition takes
 function segmentIntersect(a, b, c, d) {
   let center = centerOf([a, b, c, d]);
 
   let i;
   i = lineIntersection(a, slope(a,b), c, slope(c,d));
-  if (inRect(i, a, b) && inRect(i, c, d)) return { intersection: i, segments: [[a,b], [c,d]] };
+  if (inRect(i, a, b) && inRect(i, c, d)) return { intersection: i, partition: 0 }; // [[a,b],[c,d]]
 
   i = lineIntersection(a, slope(a,c), b, slope(b,d));
-  if (inRect(i, a, c) && inRect(i, b, d)) return { intersection: i, segments: [[a,c], [b,d]] };
+  if (inRect(i, a, c) && inRect(i, b, d)) return { intersection: i, partition: 1 }; // [[a,c],[b,d]]
 
   i = lineIntersection(a, slope(a,d), b, slope(b,c));
-  if (inRect(i, a, d) && inRect(i, b, c)) return { intersection: i, segments: [[a,d], [b,c]] };
+  if (inRect(i, a, d) && inRect(i, b, c)) return { intersection: i, partition: 2 }; // [[a,d],[b,c]]
 
   return null; // if there's no intersection at all
 }
 // intersection of two lines defined by point p with slope m, and point q with slope n
-function lineIntersect(p, m, q, n) {
-  let x = (q.y - p.y - m*q.x + n*p.x) / (m - n);
-  let y = m*(x - p.x) - p.y; // point slope form
+function lineIntersection(a, m, b, n) {
+  let x = (b.y - a.y - n*b.x + m*a.x) / (m - n);
+  let y = m*(x - a.x) + a.y; // point slope form
   return p(x, y);
 }
 
@@ -120,17 +120,7 @@ function lineIntersect(p, m, q, n) {
  //// Tverberg-specific functions ////
 /////////////////////////////////////
 
-// iterate through points, for each point p:
-//  - check whether all halfspaces with a boundary through p contain 1/3 of the points
-//  - do this by checking each line that goes through p and another point, on both sides
-//     - each side should have at least n/3+1 and less than 2n/3 (or around there?)
-// if one matches, exit and get r-1 triangles based on the matching point as a center
-// if none match, we need to form a center point using two crossing line segments
-// iterate through sets of four points and find an intersection p
-//  - if the intersection doesn't exist, move on
-//  - if it does, then check all halfspaces through p like before
-// when one is found, exit, and get r-2 triangles from the remaining points based on that center
-// but I'm not sure how to guarantee that we'll definitely find a valid center
+// find a candidate for the center point: check each point, then try each potential intersection
 function tverbergPartition(points) {
   let n = points.length;
   let lowerLimit = (n-1) / 3; // at least a third of points other than i
@@ -153,28 +143,74 @@ function tverbergPartition(points) {
     }
     if (pointValid) { // if a point has all large enough halfspaces
       return {
-        lines: [],
         triangles: trianglesForPoints(points, points[i], [i]), // center i, don't include i
+        lines: [],
+        center: points[i],
       };
     }
   }
 
-  // TODO: test all intersection points
+  // we didn't find a point satisfying the midpoint property, so we need to test all intersections
+  lowerLimit = (n-4) / 3;
+
+  for (let a = 0; a < n; a++) {
+    for (let b = a+1; b < n; b++) {
+      for (let c = b+1; c < n; c++) {
+        for (let d = c+1; d < n; d++) {
+          let result = segmentIntersect(points[a], points[b], points[c], points[d]);
+          if (!result) continue; // if the segments don't intersect, skip this set
+
+          let inter = result.intersection;
+          let pointValid = true;
+          for (j = 0; j < n; j++) {
+            if (j === a || j === b || j === c || j === d) continue;
+
+            let countOnLeft = points.filter((p, idx) => {
+              if (idx === a || idx === b || idx === c || idx === d) return false; // minus segments
+              else return orient(inter, points[j], p) > 0;
+            }).length;
+            let countOnRight = n - countOnLeft - 5; // total - left - (a, b, c, d, and j)
+
+            if (countOnLeft < lowerLimit || countOnRight < lowerLimit) {
+              pointValid = false;
+              break; // if they don't, then break; move on to the next i
+            }
+          }
+
+          if (pointValid) {
+            let lines = [];
+            if (result.partition === 0) lines = [[a, b], [c, d]];
+            if (result.partition === 1) lines = [[a, c], [b, d]];
+            if (result.partition === 2) lines = [[a, d], [b, c]];
+
+            return {
+              triangles: trianglesForPoints(points, inter, [a, b, c, d]),
+              lines: lines,
+              center: inter,
+            };
+          }
+        }
+      }
+    }
+  }
 
   return { // no triangles :(
-    lines: [],
     triangles: [],
+    lines: [],
+    center: p(-100,-100),
   };
 }
-
 
 // splits n points into subsets of triangles, each one's points spread out by n/3
 // n is the count of points, minus the count of except (points not to include in any triangles)
 function trianglesForPoints(points, center, except) {
   let indices = listFrom(0, points.length); // indices referencing each point
-  except.forEach((e) => indices.splice(e, 1)); // remove exceptions from indices
+  except.forEach((e) => indices[e] = null); // remove exceptions from indices
+  indices = indices.filter((i) => i !== null); // remove here, so we don't modify while iterating
+
   // sort remaining indices by angle from the center to the index's corresponding point:
   indices.sort((iA, iB) => compare(angle(center, points[iA]), angle(center, points[iB])));
+
 
   let triCount = Math.floor(indices.length / 3);
   return listFrom(0, triCount).map((t) => indices.filter((referenceIndex, literalIndex) => {

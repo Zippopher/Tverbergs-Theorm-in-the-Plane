@@ -1,25 +1,52 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Tverberg's Theorem Visualization Test</title>
+    <title>Tverberg's Theorem Visualization</title>
     <style>
 * {
   box-sizing: border-box;
 }
 html {
   font-family: verdana;
+  font-size: 16pt;
 }
 canvas {
   width: 100%;
   border: 2px solid black;
+}
+input, button {
+  font-size: inherit;
+}
+input[type=number] {
+  width: 3em;
+}
+button {
+  padding: 6px 10px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  outline: none;
+  box-shadow: 2px 2px 6px black;
+}
+button:active {
+  box-shadow: 1px 1px 3px black;
 }
     </style>
     <script type="text/javascript" src="computations.js"></script>
     <script type="text/javascript" src="render.js"></script>
   </head>
   <body>
-    <h1>Tverberg's Theorem Visualization Test</h1>
+    <h1>Tverberg's Theorem</h1>
+
+    Number of sets: r = <input type="number" id="sets-input" value="3">
+    <br>
+    Number of points: n = <span id="points-output">7</span>
+    <br><br>
+    <button id="reset-button">New points</button>
+    <br><br>
+
     <canvas id="canvas" width="1920" height="1080">
-      Your browser does not support the canvas API or WebGL or whatever.</canvas>
+      Your browser does not support the canvas API or WebGL or whatever.
+    </canvas>
   </body>
 </html>
