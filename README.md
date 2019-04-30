@@ -8,7 +8,7 @@ Tverberg's Theorem states that sufficiently many points in d-dimensional Euclide
 points there exists a point x (not necessarily one of the given points) and a partition of the given points into r subsets, such that x belongs to the convex hull of all of the subsets.
 
 ## Our Project
-Our visualization works in 2D, so for a given number of sets r, a set of `3r-2` points is generated, and they're divided into a partition that fulfills Tverberg's theorem for that set of points.
+Our visualization works in 2D, so for a given number of sets r, a set of `3r-2` points is generated, and they're divided into a partition that fulfills Tverberg's theorem for that set of points.  We determined that dimensions beyond 2D as well as the topological view of the Tverberg Theorem to be beyond the scope of our project given the associated complexity in generating a proper visualization.
 
 ## How it Works
 So far, this works for sets of points where a single point in the set is the intersection of all convex hulls. In this case, the subsets consist of one subset of size 1 (the afformentioned point) and all other subsets are specific sets of 3. The subsets of 3 each have a triangle for their convex hull, and these triangles are chosen such that their intersection contains the single point.
