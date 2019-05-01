@@ -11,35 +11,35 @@ function randRange(min, max) {
   return Math.random() * (max-min) + min;
 }
 
-// integer list of range [a, b)
+//// integer list of range [a, b)
 function listFrom(a, b) {
   return Array(b-a).fill(0).map((_, i) => i+a);
 }
 
-// rotates a list by offset, so [1, 2, 3] rotated by 1 is [2, 3, 1]
+//// rotates a list by offset, so [1, 2, 3] rotated by 1 is [2, 3, 1]
 function rotate(list, offset) {
   return list.map((_,i) => list[(i + offset + list.length) % list.length]);
 }
 
-// generic compare for sort function
+//// generic compare for sort function
 function compare(a, b) {
   if (a > b) return 1;
   if (a < b) return -1;
   return 0;
 }
 
-// if i is within the bounds of the quadrilateral bounded by a, b
+//// if i is within the bounds of the quadrilateral bounded by a, b
 function inRect(i, a, b) {
   let left = Math.min(a.x, b.x), right = Math.max(a.x, b.x);
   let top = Math.min(a.y, b.y), bottom = Math.max(a.y, b.y);
   return i.x > left && i.x < right && i.y > top && i.y < bottom;
 }
-// if i is within the triangle formed by a, b, c
+//// if i is within the triangle formed by a, b, c
 function inTriangle(i, a, b, c) {
   return orient(i, a, b) === orient(i, b, c) === orient(i, c, a);
 }
 
-// returns 1 for a ccw triangle, -1 for cw, and 0 for collinear
+//// returns 1 for a ccw triangle, -1 for cw, and 0 for collinear
 function orient(a, b, c) {
   let det = determinant([[a.x-c.x, a.y-c.y], [b.x-c.x, b.y-c.y]]);
   if (det > 0) return 1;
@@ -61,12 +61,12 @@ function determinant(matrix) {
  //// Geometric utility functions ////
 /////////////////////////////////////
 
-// create a point
+//// create a point
 function p(x, y) {
   return { x: x, y: y };
 }
 
-// get count random points between min and max
+//// get count random points between min and max
 function randomPoints(count, min, max) {
   let points = [];
   for (let i = 0; i < count; i++) {
@@ -83,13 +83,13 @@ function angle(a, b) { // from a to b
   return Math.atan2(b.y - a.y, b.x - a.x);
 }
 
-// center of a set of points (not a member of the set)
+//// center of a set of points (not a member of the set)
 function centerOf(points) {
   let sum = points.reduce((sum, point) => p(sum.x+point.x, sum.y+point.y), p(0, 0));
   return p(sum.x/points.length, sum.y/points.length);
 }
 
-// given four points, return their intersection, and the form which their partition takes
+//// given four points, return their intersection, and the form which their partition takes
 function segmentIntersect(a, b, c, d) {
   let center = centerOf([a, b, c, d]);
 
@@ -105,7 +105,7 @@ function segmentIntersect(a, b, c, d) {
 
   return null; // if there's no intersection at all
 }
-// intersection of two lines defined by point p with slope m, and point q with slope n
+//// intersection of two lines defined by point p with slope m, and point q with slope n
 function lineIntersection(a, m, b, n) {
   let x = (b.y - a.y - n*b.x + m*a.x) / (m - n);
   let y = m*(x - a.x) + a.y; // point slope form
@@ -120,7 +120,7 @@ function lineIntersection(a, m, b, n) {
  //// Tverberg-specific functions ////
 /////////////////////////////////////
 
-// find a candidate for the center point: check each point, then try each potential intersection
+//// find a candidate for the center point: check each point, then try each potential intersection
 function tverbergPartition(points) {
   let n = points.length;
   let lowerLimit = (n-1) / 3; // at least a third of points other than i
@@ -206,14 +206,97 @@ function tverbergPartition(points) {
 function trianglesForPoints(points, center, except) {
   let indices = listFrom(0, points.length); // indices referencing each point
   except.forEach((e) => indices[e] = null); // remove exceptions from indices
-  indices = indices.filter((i) => i !== null); // remove here, so we don't modify while iterating
+  indices = indices.filter((i) => i !== null); // removal here, so we don't modify while iterating
 
   // sort remaining indices by angle from the center to the index's corresponding point:
   indices.sort((iA, iB) => compare(angle(center, points[iA]), angle(center, points[iB])));
-
 
   let triCount = Math.floor(indices.length / 3);
   return listFrom(0, triCount).map((t) => indices.filter((referenceIndex, literalIndex) => {
     return literalIndex % triCount === t; // take 3 points which are triCount apart
   }).slice(0,3)); // limit to 3
+}
+
+//// do a halfspace test for the line from i to j
+//// of for the line from intersect(a, b, c, d) to j
+function tverbergPartitionStep(points, i, a, b, c, d, j) {
+  let n = points.length;
+
+  if (j === n) return {
+    lines: [],
+    divider: null,
+    valid: true,
+    message: 'All halfspaces for this center point have been tested.',
+  };
+  
+  if (i < n) { // if i is in valid range, use that as index of single point to test
+    let lowerLimit = (n-1) / 3; // at least a third of points other than i
+
+    if (j === i) return {
+      lines: [],
+      divider: null,
+      valid: true,
+      message: 'The points being tested are the same.',
+    };
+
+    // count the points which are on the left of the line ij:
+    let countOnLeft = points.filter((p) => orient(points[i], points[j], p) > 0).length;
+    let countOnRight = n - countOnLeft - 2; // total - left - (i and j)
+    // i isn't factored into the midpoint metric
+    // and assume j isn't on either side, since we're testing worst case of the line position
+
+    let valid = !(countOnLeft < lowerLimit || countOnRight < lowerLimit);
+
+    let message = `${countOnLeft} on left, ${countOnRight} on right.`;
+    if (valid) message += ' Invalid, moving on to the next point.';
+    else       message += ' Valid, continuing with this point.';
+
+    return {
+      lines: [],
+      divider: [points[i], points[j]],
+      valid: valid,
+      message: message,
+    };
+  }
+  else { // if i wasn't passed, (a, b, c, d) were, so test their intersection
+    let lowerLimit = (n-4) / 3;
+    let result = segmentIntersect(points[a], points[b], points[c], points[d]);
+    if (!result) return { // points don't intersect
+      lines: [[a,b], [c,d]],
+      divider: null,
+      valid: false,
+      message: 'The points do not intersect.',
+    };
+    let inter = result.intersection;
+    let lines = [];
+    if (result.partition === 0) lines = [[a, b], [c, d]];
+    if (result.partition === 1) lines = [[a, c], [b, d]];
+    if (result.partition === 2) lines = [[a, d], [b, c]];
+    
+    if (j === a || j === b || j === c || j === d) return {
+      lines: lines,
+      divider: null,
+      valid: true,
+      message: 'The point being tested is part of the intersection.',
+    };
+    
+    let countOnLeft = points.filter((p, idx) => {
+      if (idx === a || idx === b || idx === c || idx === d) return false; // minus segments
+      else return orient(inter, points[j], p) > 0;
+    }).length;
+    let countOnRight = n - countOnLeft - 5; // total - left - (a, b, c, d, and j)
+
+    let valid = !(countOnLeft < lowerLimit || countOnRight < lowerLimit);
+
+    let message = `${countOnLeft} on left, ${countOnRight} on right.`;
+    if (valid) message += ' Invalid, moving on to the next point.';
+    else       message += ' Valid, continuing with this point.';
+
+    return {
+      lines: lines,
+      divider: [inter, points[j]],
+      valid: valid,
+      message: message,
+    };
+  }
 }

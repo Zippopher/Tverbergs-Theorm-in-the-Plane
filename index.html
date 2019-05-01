@@ -9,10 +9,21 @@
 html {
   font-family: verdana;
   font-size: 16pt;
+  color: #202020;
+}
+p {
+  padding: 0 1em;
+  text-indent: 2em;
+}
+a {
+  color: inherit;
+}
+ul, ol {
+  padding: 0 2em;
 }
 canvas {
   width: 100%;
-  border: 2px solid black;
+  border: 2px solid #000000;
 }
 input, button {
   font-size: inherit;
@@ -20,33 +31,150 @@ input, button {
 input[type=number] {
   width: 3em;
 }
-button {
+input[type=radio] {
+  visibility: hidden;
+}
+button, input[type=radio] + label {
   padding: 6px 10px;
   border: none;
   border-radius: 4px;
+  background-color: #ffffff;
   cursor: pointer;
   outline: none;
-  box-shadow: 2px 2px 6px black;
+  box-shadow: 2px 2px 6px #000000;
 }
-button:active {
-  box-shadow: 1px 1px 3px black;
+button:active, input[type=radio]:checked + label {
+  box-shadow: 0px 0px 1px #000000;
+}
+input#step-interval, label[for=step-interval] {
+  visibility: hidden;
+}
+input#option-steps:checked ~ input#step-interval, input#option-steps:checked ~ label[for=step-interval] {
+  visibility: visible;
+}
+div.info {
+  display: inline-block;
+  padding-right: 1em;
+  border-radius: 6px;
+  margin: 0 1em;
+  background-color: #fff4d0;
+}
+div.info::before {
+  content: '↑';
+  display: inline-block;
+  height: 1.4em;
+  width: 1.5em;
+  padding: 0.1em 0 0; /* center text vertically */
+  border-radius: .75em; /* circle */
+  margin: .5em; /* spacing around */
+  font-size: 1.5em;
+  text-align: center; /* center text horizontally */
+  background-color: #ffffff;
 }
     </style>
     <script type="text/javascript" src="computations.js"></script>
     <script type="text/javascript" src="render.js"></script>
   </head>
   <body>
-    <h1>Tverberg's Theorem</h1>
+    <h1 id="top">Tverberg's Theorem in the Plane</h1>
+    <h2>Visualization</h2>
 
     Number of sets: r = <input type="number" id="sets-input" value="7">
     <br>
-    Number of points: n = <span id="points-output">19</span>
+    Number of points: n = <span id="points-output"></span>
     <br><br>
     <button id="reset-button">New points</button>
+    <br><br><br>
+    <input type="radio" id="option-tverberg" name="option" checked><label for="option-tverberg">Tverberg partition</label>
+    <input type="radio" id="option-birch" name="option"><label for="option-birch">Birch partition</label>
+    <input type="radio" id="option-steps" name="option"><label for="option-steps">Tverberg steps</label>
+    <label for="step-interval">&nbsp;&nbsp;Step speed: </label><input type="range" id="step-interval" min="1" max="100" step="any" value="10">
     <br><br>
 
     <canvas id="canvas" width="1920" height="1080">
       Your browser does not support the canvas API or WebGL or whatever.
     </canvas>
+    <div id="display"></div>
+    <br>
+    <em>Click and drag points to move them around. The solution will be recalculated based on the new positions.</em>
+
+    <h2>How it Works</h2>
+
+    <h3>Overview of Tverberg's Theorem</h3>
+    <p>Tverberg's theorem states that for a set S of n points in dimension d, we can partition them into r subsets, where <em>n = (d+1)(r-1) + 1</em>, such that there exists a point (not necessarily in n) which is inside the convex hull of all subsets. In other words, the convex hulls of all the subsets overlap.</p>
+
+    <h3>In the Plane</h3>
+    <p>Our specific focus is Tverberg's theorem in the plane, so dimension d is fixed at d = 2. This means that our relation between number of subsets r and the set's size is <em>n = 3r - 2</em>.</p>
+
+    <p>When considering only the plane, there are three types of subsets: those of size 1, size 2, and size 3. In this explanation, we'll generally refer to these types of sets by the form which their respective convex hulls take. (We're assuming points are in general position, so no two points are the same, and no three points are collinear.)</p>
+    <ul>
+      <li>The convex hull of a single point is simply that point.</li>
+      <li>The convex hull of a pair of points is the line segment formed by those points.</li>
+      <li>The convex hull of a triple of points is the triangle that they form.</li>
+    </ul>
+
+    <p>So we can say that a partition is composed of some number of points plus some number of segments plus some number of triangles. We can restrict this further though: </p>
+    <ul>
+      <li>We can't have two points in a partition: they can't overlap without being the same point.</li>
+      <li>We can't have three line segments in a partition: if two segments overlap at a given point, we can't guarantee that there's a third segment that contains the overlap point.</li>
+      <li>We can't have two segments <em>and</em> a point: if two segments overlap at a given point, we can't guarantee that their overlap will be the point in the partition.</li>
+    </ul>
+    <p>So we can have either two segments <em>or</em> one point. The rest of our subsets must be triangles. (If we used any polygons 'larger' than a triangle, we wouldn't have enough points to form r subsets.)</p>
+
+    <h3>Birch Partitions</h3>
+    <p>The basis of our algorithm for finding a Tverberg partition in the plane uses a paper proving a result similar to this in the plane. B.J. Birch's paper <em>On 3n Points in a Plane</em> shows that for 3n points, we can partition the points into n subsets of 3, such that the triangles formed by each subset all overlap.</p>
+
+    <p>Birch's method for finding a partition is as follows:</p>
+    <ol>
+      <li>Find the center of the 3n points (not one of the points themselves).</li>
+      <li>Sort the 3n points by their angle relative to the center point, assigned each one an index i from 0 to 3n-1.</li>
+      <li>For t &isin; [0, n-1], triangle t is formed by the points where i % n == t.</li>
+    </ol>
+    <a href="#top"><div class="info">To see this process in action, choose the Birch partition option.</div></a>
+
+    <p>Essentially, this method creates a triangle using the three points where each pair has n-1 points between them (in sorted order).</p>
+
+    <p>This method works because of a property of the center point of a set: all closed halfspaces bounded by the center point must contain at least a third of the total points, in this case n/3 points. Since each border-segment of each triangle has n-1 points between them, then there must be n+1 (including the segment bounds) points in the halfspace bounded by the line through the center which is parallel to this border-segment. If this is the case for all three borders of a triangle, then the triangle must contain the center.</p>
+
+    <h3>Choosing a Center Point</h3>
+    <p>Tverberg in the plane is a fairly similar problem, since most of our partition will be made up of triangles. It just has a tighter constraint, where one of the points must be within the intersection. In some cases we can choose one of the points as a center point, and use Birch's algorithm to find the triangles which bound it.</p>
+
+    <p>But for this to work, the point we choose must fulfill the same role as a center point. So we need to check the property of all lines through a point being a boundary for a closed halfspace with a third of the points:</p>
+    <ul>
+      <li>For each point c in S, test whether it's a center point:
+        <ol type="a">
+          <li>For each point p in S (other than c) test the line from c to p:
+            <ul>
+              <li>If there are less than (n-1)/3 points (i.e. a third not including c) on either side of the line, c is not a valid center; move on to the next value for c.</li>
+            </ul>
+          </li>
+          <li>If c is a large enough halfspace for the remaining points, then find the Birch partition for the remaining points based on c as a center.</li>
+        </ol>
+      </li>
+    </ul>
+    <a href="#top"><div class="info">To see this process in action, choose the Tverberg steps option.</div></a>
+
+    <p>In this case, the Tverberg partition is the triangle subsets formed by the Birch partition, plus the point c.</p>
+
+    <p>But in many cases, there is no point within the set which is valid for this property (e.g. the case of all points being convex).</p>
+
+    <h3>Making a Center Point</h3>
+    <p>Our other possible configuration for a Tverberg partition in the plane is a two line segments and a number of triangles. Essentially, we need to get all line segments, and test whether their intersection is a valid center for Birch's algorithm:</p>
+    <ul>
+      <li>For each set of four points a, b, c, d in S:
+        <ol type="a">
+          <li>Find the intersection i of line segments formed by a, b, c, d, if it exists.</li>
+          <li>For each point p in S (other than a, b, c, d) test the line from i to p
+            <ul>
+              <li>If there are less than (n-4)/3 points (i.e. a third not including a, b, c, d) on either side of the line, i is not a valid center, move on to the next set of points.</li>
+            </ul>
+          </li>
+          <li>If the intersection i is a large enough halfspace for the remaining points, then find the Birch partition for the remaining points based on i as a center.</li>
+        </ol>
+      </li>
+    </ul>
+    <a href="#top"><div class="info">To see this process in action, choose the Tverberg steps option.</div></a>
+
+    <p>In this case, the Tverberg partition is the triangle subsets formed by the Birch partition, plus the two line segments formed by the points a, b, c, and d whose intersection was the center point i.</p>
   </body>
 </html>

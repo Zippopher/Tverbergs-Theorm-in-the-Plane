@@ -8,39 +8,120 @@ document.addEventListener('DOMContentLoaded', () => {
   let setsInput = document.getElementById('sets-input');
   let pointsOutput = document.getElementById('points-output');
   let resetButton = document.getElementById('reset-button');
+  let optionTverberg = document.getElementById('option-tverberg');
+  let optionBirch = document.getElementById('option-birch');
+  let optionSteps = document.getElementById('option-steps');
+  let stepIntervalRange = document.getElementById('step-interval');
+  let display = document.getElementById('display');
 
   let r, n, points, drag, draw;
 
   let refresh = () => {
     r = setsInput.value;
-    n = 3*r - 2;
-    pointsOutput.innerText = n;
+    if (optionTverberg.checked || optionSteps.checked) {
+      n = 3*r - 2;
+      pointsOutput.innerText = '3r - 2 = ' + n;
+    }
+    else { // birch is checked
+      n = 3 * r;
+      pointsOutput.innerText = '3r = ' + n;
+    }
 
     points = randomPoints(n, p(100, 100), p(canvas.width - 100, canvas.height - 100));
     drag = new Drag(canvas, points);
     draw = new Draw(canvas.getContext('2d'), points, canvas.width, canvas.height);
   }
   refresh(); // initial set values
-  setsInput.addEventListener('input', refresh); // set values again count is changed
-  resetButton.addEventListener('click', refresh);
+  setsInput.addEventListener('input', refresh); // set values when count is changed
+  resetButton.addEventListener('click', refresh); // or when 'new points' is clicked
+  optionTverberg.addEventListener('input', refresh); // or when the radio option is changed
+  optionBirch.addEventListener('input', refresh);
+  optionSteps.addEventListener('input', refresh);
+
+  let stepInterval;
+  let setStep = () => {
+    stepInterval = 30000 / Math.pow(stepIntervalRange.value, 1.5);
+  };
+  setStep(); // set initial
+  stepIntervalRange.addEventListener('input', setStep);
 
 
-  
+
   const black = '#000000';
   const colors = makePalette();
 
-  let lines = [], triangles = [], center = p(-100,-100);
+  let lines = [], triangles = [], center = p(-100,-100), divider;
+
+  let stepMode, lastStep, currentTime, pointFound, step;
 
   setInterval(function() { // render function, called every 16ms (60fps woo!)
     if (drag.recalcRequired) {
-      ({ lines, triangles, center } = tverbergPartition(points));
+      if (optionTverberg.checked) {
+        ({ lines, triangles, center } = tverbergPartition(points));
+      }
+      if (optionBirch.checked) {
+        lines = [];
+        center = centerOf(points);
+        triangles = trianglesForPoints(points, center, []);
+      }
+      if (optionSteps.checked) { // tverberg steps
+        stepMode = true;
+        pointFound = false;
+        step = { i: 0, a: 0, b: 1, c: 2, d: 3, j: 0 };
+        lastStep = 0;
+        
+        lines = [];
+        triangles = [];
+        center = [];
+        divider = null;
+      }
+      else {
+        stepMode = false;
+        display.innerText = '';
+        divider = null;
+      }
+
       drag.recalcRequired = false;
     }
+
+    if (stepMode && !pointFound && step.a < n) {
+      currentTime = Date.now();
+      if (currentTime > lastStep + stepInterval) { // do a step every stepInterval ms
+        lastStep = currentTime;
+        let data = tverbergPartitionStep(points, step.i, step.a, step.b, step.c, step.d, step.j);
+        lines = data.lines;
+        if (data.divider) {
+          let m = slope(data.divider[0], data.divider[1])
+          let upper = lineIntersection(data.divider[0], m, p(0,0), 0);
+          let lower = lineIntersection(data.divider[0], m, p(0,canvas.height), 0);
+          divider = [upper, lower];
+        }
+        else {
+          divider = null;
+        }
+
+        if (!data.valid) {
+          step.j = n; // advance j to the end of its run, to jump forward
+        }
+
+        if (data.valid && step.j === n) {
+          pointFound = true;
+          ({ lines, triangles, center } = tverbergPartition(points));
+          data.message = 'All halfspaces are valid for this point: solution found!';
+        }
+        
+        display.innerText = data.message;
+        
+        incrementStep(step, n);
+      }
+    }
+
     draw.clear();
     triangles.forEach((tri, t) => draw.triangle(tri, colors[t]));
     lines.forEach((line, l) => draw.line(line, colors[triangles.length+l]));
     points.forEach((point) => draw.dot(point, black));
     draw.circle(center, 50, black);
+    if (divider) draw.lineLiteral(divider, colors[2]);
   }, 16);
 });
 
@@ -176,6 +257,16 @@ class Draw {
     this.ctx.stroke();
   }
 
+  lineLiteral(line, color) {
+    this.ctx.strokeStyle = color;
+    this.ctx.lineWidth = 6;
+  
+    this.ctx.beginPath();
+    this.ctx.moveTo(line[0].x, line[0].y);
+    this.ctx.lineTo(line[1].x, line[1].y);
+    this.ctx.stroke();
+  }
+
   triangle(triangleRef, color) {
     let triangle = triangleRef.map((p) => this.points[p]); // map reference points to real ones
   
@@ -193,6 +284,42 @@ class Draw {
     this.ctx.globalAlpha = 0.1;
     this.ctx.fill();
     this.ctx.globalAlpha = 1;
+  }
+}
+
+
+
+//// Function 
+function incrementStep(step, n) {
+  if (step.a >= n) return; // final end state
+
+  if (step.j < n) { // always increment j if possible
+    step.j++;       // we allow j to equal n as a signal value
+  }
+  else if (step.i < n) { // comparing each point i with every other point j
+    step.i++;
+    step.j = 0;
+  }
+  else { // comparing each set of four points a, b, c, d with every other point j
+    step.j = 0;
+    step.d++;
+    while ((step.b >= n || step.c >= n || step.d >= n) && step.a !== n) { // ensure kill at a === n 
+      if (step.b === n) {
+        step.a++;
+        step.b = step.a + 1;
+        step.c = step.b + 1;
+        step.d = step.c + 1;
+      }
+      if (step.c === n) {
+        step.b++;
+        step.c = step.b + 1;
+        step.d = step.c + 1;
+      }
+      if (step.d === n) {
+        step.c++;
+        step.d = step.c + 1;
+      }
+    }
   }
 }
 
