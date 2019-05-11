@@ -147,50 +147,50 @@ class Drag {
     // Note: It's important that the methods in the Drag class are defined using arrow functions.
     // When they're passed as callbacks, their 'this' value must not be bound to the event's 'this'.
     // Arrow functions prevent the 'this' value from binding.
-  }
 
-  getMousePos = (event) => {
-    if (event.changedTouches) event = event.changedTouches[0]; // for mobile, use first touch point
+    this.getMousePos = (event) => {
+      if (event.changedTouches) event = event.changedTouches[0]; // for mobile use first touch point
 
-    let rect = this.canvas.getBoundingClientRect(); // absolute size of canvas
-    let scaleX = this.canvas.width / rect.width;    // relationship bitmap vs. element for X
-    let scaleY = this.canvas.height / rect.height;  // relationship bitmap vs. element for Y
-  
-    return {
-      x: (event.clientX - rect.left) * scaleX, // scale mouse coordinates after they have
-      y: (event.clientY - rect.top) * scaleY   // been adjusted to be relative to element
-    }
-  }
-
-  mouseDown = (event) => {
-    event.preventDefault(); // when touch event, prevent mouse event followup
-    let dist2Range = 20*20; // squared distance to a point to consider a touch
-    if (event.type === 'touchstart') dist2Range = 50*50;
-
-    let mouse = this.getMousePos(event);
-    for (let i = 0; i < this.points.length; i++) {
-      let dx = mouse.x - this.points[i].x,
-          dy = mouse.y - this.points[i].y;
-      let dist2 = dx * dx + dy * dy;
-      if (dist2 < dist2Range) {
-        this.dragging = this.points[i];
-        this.canvas.addEventListener('mousemove', this.mouseMove);
-        return;
+      let rect = this.canvas.getBoundingClientRect(); // absolute size of canvas
+      let scaleX = this.canvas.width / rect.width;    // relationship bitmap vs. element for X
+      let scaleY = this.canvas.height / rect.height;  // relationship bitmap vs. element for Y
+    
+      return {
+        x: (event.clientX - rect.left) * scaleX, // scale mouse coordinates after they have
+        y: (event.clientY - rect.top) * scaleY   // been adjusted to be relative to element
       }
-    }
-    this.dragging = null; // nothing tapped: dragging nothing
-  }
+    };
 
-  mouseMove = (event) => {
-    let mouse = this.getMousePos(event);
-    this.dragging.x = mouse.x;
-    this.dragging.y = mouse.y;
-  }
+    this.mouseDown = (event) => {
+      event.preventDefault(); // when touch event, prevent mouse event followup
+      let dist2Range = 20*20; // squared distance to a point to consider a touch
+      if (event.type === 'touchstart') dist2Range = 50*50;
 
-  mouseUp = (event) => {
-    this.dragging = null;
-    this.recalcRequired = true;
-    canvas.removeEventListener('mousemove', this.mouseMove);
+      let mouse = this.getMousePos(event);
+      for (let i = 0; i < this.points.length; i++) {
+        let dx = mouse.x - this.points[i].x,
+            dy = mouse.y - this.points[i].y;
+        let dist2 = dx * dx + dy * dy;
+        if (dist2 < dist2Range) {
+          this.dragging = this.points[i];
+          this.canvas.addEventListener('mousemove', this.mouseMove);
+          return;
+        }
+      }
+      this.dragging = null; // nothing tapped: dragging nothing
+    };
+
+    this.mouseMove = (event) => {
+      let mouse = this.getMousePos(event);
+      this.dragging.x = mouse.x;
+      this.dragging.y = mouse.y;
+    };
+
+    this.mouseUp = (event) => {
+      this.dragging = null;
+      this.recalcRequired = true;
+      canvas.removeEventListener('mousemove', this.mouseMove);
+    };
   }
 }
 
